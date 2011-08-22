@@ -9,15 +9,18 @@ esac
 
 echo "Searching for nightly packages for Linux $arch..."
 echo
- 
-packages=`curl -s http://ftp.mozilla.org/pub/mozilla.org/firefox/nightly/latest-trunk/ 	| 
-		grep "linux-$arch.tar.bz2" 						| 
-		grep -E -o 'firefox.[^>]+.bz2'						|
-		uniq`
 
-pkgcount=`echo "$packages" | grep -c 'firefox'`
+result=`curl -s http://ftp.mozilla.org/pub/mozilla.org/firefox/nightly/latest-trunk/ | grep "$arch\.tar\.bz2"`
 
-choices=($packages)
+choices="`echo "$result" | perl -ne 'm/<a .*?>(.*?)<\/a>/; print "$1\n"'`"
+dates="`echo "$result" | perl -ne 'm/<a .*?>.*?<\/a><\/td><.*?>(.*?)\s+<\/td>/; print "$1\n"' | sed -r 's/\s/-/g'`"
+sizes="`echo "$result" | perl -ne 'm/<a .*?>.*?<\/a><\/td><.*?>.*?\s+<\/td><.*?>\s+(.*?)</; print "$1\n"'`"
+
+pkgcount=`echo "$choices" | grep -c 'firefox'`
+
+packages=($choices)
+sizes=($sizes)
+dates=($dates)
 
 echo "Found $pkgcount matching packages"
 echo
@@ -28,8 +31,8 @@ while true; do
 
 	ctr="0"
 
-	for pkg in $packages; do
-		echo "	$ctr) $pkg"
+	for pkg in $choices; do
+		echo -e "\t$ctr) $pkg\t[${dates[$ctr]}]\t(${sizes[$ctr]})"
 		let "ctr += 1"
 	done
 
@@ -44,7 +47,7 @@ while true; do
 				then
 					echo "Invalid selection"
 				else
-					selection=${choices["$answer"]}
+					selection=${packages["$answer"]}
 					break ;
 				fi
 			;;
