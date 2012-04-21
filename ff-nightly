@@ -1,88 +1,60 @@
 #!/usr/bin/env bash
 
+install_path="/opt/firefox-nightly/"
+
 arch=`uname -m`
 case $arch in
-	"x86_64")	;;
-	"i686")		;;
-	*)	echo "Sorry, no firefox build available for $arch"; exit;;
+    "x86_64")   ;;
+    "i686")             ;;
+    *)  echo "Sorry, no firefox build available for $arch"; exit;;
 esac
 
 echo "Searching for nightly packages for Linux $arch..."
-echo
 
-result=`curl -s http://ftp.mozilla.org/pub/mozilla.org/firefox/nightly/latest-trunk/ | grep "$arch\.tar\.bz2"`
+result=`curl -s http://ftp.mozilla.org/pub/mozilla.org/firefox/nightly/latest-trunk/ | grep "$arch\.tar\.bz2" | tail -n1`
 
-choices="`echo "$result" | perl -ne 'm/<a .*?>(.*?)<\/a>/; print "$1\n"'`"
-dates="`echo "$result" | perl -ne 'm/<a .*?>.*?<\/a><\/td><.*?>(.*?)\s+<\/td>/; print "$1\n"' | sed -r 's/\s/-/g'`"
-sizes="`echo "$result" | perl -ne 'm/<a .*?>.*?<\/a><\/td><.*?>.*?\s+<\/td><.*?>\s+(.*?)</; print "$1\n"'`"
+package="`echo "$result" | perl -ne 'm/<a .*?>(.*?)<\/a>/; print "$1\n"'`"
+date="`echo "$result"    | perl -ne 'm/<a .*?>.*?<\/a><\/td><.*?>(.*?)\s+<\/td>/; print "$1\n"' | sed -r 's/\s/-/g'`"
+size="`echo "$result"    | perl -ne 'm/<a .*?>.*?<\/a><\/td><.*?>.*?\s+<\/td><.*?>\s+(.*?)</; print "$1\n"'`"
 
-pkgcount=`echo "$choices" | grep -c 'firefox'`
+[[ ".$package." == ".." ]] && echo "No packages found" && exit 1
 
-packages=($choices)
-sizes=($sizes)
-dates=($dates)
+case "$1" in
+    "--ask")
+        echo "Found package: $package - $date ($size)"
 
-echo "Found $pkgcount matching packages"
-echo
+        read -p "Proceed with installation? [y/n] "
+        if [[ ! $REPLY =~ ^[Yy]$ ]]
+        then
+            echo "Quitting... " && exit 0
+        fi
 
-while true; do
-	echo "Available packages:"
-	echo
+        read -p "Install location? [$install_path] " path
+        install_path=${path:-$install_path}
+        ;;
+esac
 
-	ctr="0"
+mkdir -p "$install_path/firefox-nightly" || exit
 
-	for pkg in $choices; do
-		echo -e "\t$ctr) $pkg\t[${dates[$ctr]}]\t(${sizes[$ctr]})"
-		let "ctr += 1"
-	done
+cd "$install_path/firefox-nightly"
 
-	echo "	q) quit."
-	echo
-
-	read -p "Make a selection > " answer
-
-	case $answer in
-		[0-9]*	)
-				if [ "$answer" -ge "$pkgcount" ]
-				then
-					echo "Invalid selection"
-				else
-					selection=${packages["$answer"]}
-					break ;
-				fi
-			;;
-		[Qq]	) echo "Quitting..."; exit ; ;;
-		* 	) echo "Invalid selection" ;;
-	esac
-
-done
-
-echo "Selecting package $selection..."
-echo
-
-read -p "Install location [/opt/firefox-nightly/] > " path
-path=${path:-"/opt/firefox-nightly/"}
-
-mkdir -p "$path/firefox-nightly" || exit
-
-cd "$path/firefox-nightly"
+echo "Dowloading $package to $install_path"
+curl "http://ftp.mozilla.org/pub/mozilla.org/firefox/nightly/latest-trunk/$package" -o "$package" || exit
 
 echo
-echo "Dowloading $selection to $path"
-curl "http://ftp.mozilla.org/pub/mozilla.org/firefox/nightly/latest-trunk/$selection" -o "$selection" || exit
+echo "Unpacking $package"
+tar xjf "$package"
+echo
 
-echo
-echo "Unpacking $selection"
-tar xjf "$selection"
-echo
 if [[ $EUID -ne 0 ]]; then
-        echo "Need to be root to symlink"
+    echo "Need to be root to symlink"
+    exit 1
 fi
 
-sudo ln -sf "$PWD/firefox/firefox" "/usr/bin/firefox-nightly" || exit
+sudo ln -sf "$PWD/firefox/firefox" "/usr/local/bin/firefox-nightly" || exit
 sudo -k
 
-echo "Symlinked to /usr/bin/firefox-nightly"
+echo "Symlinked to /usr/local/bin/firefox-nightly"
 echo
 
-echo "Installed. Firefox-nightly may now be run by running /usr/bin/firefox-nightly"
+echo "Installed. Firefox-nightly may now be run by running /usr/local/bin/firefox-nightly"
