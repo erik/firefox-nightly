@@ -11,7 +11,7 @@ esac
 
 echo "Searching for nightly packages for Linux $arch..."
 
-result=`curl -s http://ftp.mozilla.org/pub/mozilla.org/firefox/nightly/latest-trunk/ | grep "$arch\.tar\.bz2" | tail -n1`
+result=`curl -s http://ftp.mozilla.org/pub/mozilla.org/firefox/nightly/latest-trunk/ | grep "$arch\.tar\.bz2</a>" | tail -n1`
 
 package="`echo "$result" | perl -ne 'm/<a .*?>(.*?)<\/a>/; print "$1\n"'`"
 date="`echo "$result"    | perl -ne 'm/<a .*?>.*?<\/a><\/td><.*?>(.*?)\s+<\/td>/; print "$1\n"' | sed -r 's/\s/-/g'`"
